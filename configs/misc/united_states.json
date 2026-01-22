@@ -1,0 +1,26 @@
+{
+    "env-params": {
+        "N" : 338289856,
+        "health_weights" : [0.75, 1.5 , 7.0], 
+        "hosp_cap" : 937062,
+        "trade_off_weights" : [1.0, 1.0],
+        "days_per_restrict" : 7,
+        "max_steps" : 365
+    },
+    "spec-params": {
+        "gamma" : [7, 
+                10, 
+                16],   
+        "omega" :  0.0017, 
+        "rho"   :  0.08,
+        "delta" :  5.1, 
+        "theta" :  5.9,
+        "mu"    : [10, 
+                14],
+        "sigma" :  180,
+        "probas": [0.8,   
+                0.3,   
+                0.02,   
+                0.0727]
+    }
+}

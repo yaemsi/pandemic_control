@@ -1,0 +1,27 @@
+{
+    "env-params": {
+        "N" : 5000, 
+        "health_weights" : [0.75, 1.5, 7.0],
+        "hosp_cap" : 300,
+        "trade_off_weights" : [1.0, 1.0],
+        "days_per_restrict" : 7,
+        "max_steps" : 366
+    },
+    "spec-params": {
+        "gamma" : [7, 10],   
+        "omega" :  0.005, 
+        "rho"   :  0.08,
+        "delta" :  5.1, 
+        "theta" :  9.1,
+        "mu"    : 10,
+        "sigma" :  180,
+        "probas": [0.8, 0.3, 0.02, 0.0727]
+    },
+    "init-conds":{
+        "E0" : 0, 
+        "I_a0" : 0, 
+        "I_s0" : 1,
+        "R0" : 0, 
+        "D0" : 0
+    }
+}
