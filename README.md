@@ -30,11 +30,14 @@ pandemic-control
 ├── configs
 │   ├── ...
 │   │   ├── ...
+│   ...
+|
 ├── data
-│   ├── ...
-│   │   ├── ...
-├── notebooks
-│   ├── ...
+│   ├── new-york.csv
+│   ├── paris.csv
+│   ├── singapore.csv
+│   └── tokyo.csv
+│   
 ├── pandemic_control
 │   ├── environment
 │   │   ├── __init__.py
@@ -45,10 +48,10 @@ pandemic-control
 │   │   ├── seird.py
 │   │   ├── seirad.py
 │   │   ├── seiradh.py
-│       └── seiradhv.py
-│   └── model
-│       ├── __init__.py
-│       ├── base.py
+│   │   └── seiradhv.py
+│   ├── model
+│   │   ├── __init__.py
+│   │   └──  base.py
 │   └── utils
 │       ├── __init__.py
 │       ├── costs.py
@@ -56,9 +59,11 @@ pandemic-control
 │       ├── rewards.py
 │       ├── runners.py
 │       └── simulation.py
+|
 ├── scripts
 │    ├── run_simulation.py
 │    └── run_training.py
+|
 ├── main.py
 ├── pyproject.toml
 ├── README.md

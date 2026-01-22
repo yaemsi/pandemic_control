@@ -74,7 +74,8 @@ def run_model_policy_simulations(args: argparse.Namespace) -> None:
         seed = args.seed,
         verbose = 1,
         tensorboard_log = f"./outputs/basic_tests/rl_model/logs",
-        n_steps = args.t_max//7, #TODO
+        #n_steps = args.t_max, 
+        #batch_size = args.t_max,
     )
     
     logger.info(f"*** Starting training.")

@@ -36,17 +36,17 @@ class BaseModel(ABC):
     def __init__(self, **kwargs):
         """ To implement in sublasses """
     
-    def train(self, **kwargs):
+    def train(self, **kwargs) -> None:
         raise NotImplementedError(f"Please implement this method in a subclass.")
     
-    def predict(self, **kwargs):
+    def predict(self, **kwargs) -> np.ndarray:
         raise NotImplementedError(f"Please implement this method in a subclass.")
     
-    def save_to_disk(self, save_dir: str | os.PathLike, **kwargs):
+    def save_to_disk(self, save_dir: str | os.PathLike, **kwargs) -> None:
         raise NotImplementedError(f"Please implement this method in a subclass.")
     
     @classmethod
-    def load_from_disk(cls, model_weights: str | os.PathLike, **kwargs):
+    def load_from_disk(cls, model_weights: str | os.PathLike, **kwargs) -> BaseModel:
         raise NotImplementedError(f"Please implement this method in a subclass.")
 
         
@@ -71,10 +71,10 @@ class RLModel(BaseModel):
         seed: int = 33,
         verbose: int = 1,
         **kwargs,
-        ):
+        ) -> RLModel:
         if not model_type in BASE_MODELS.keys():
             raise ValueError(f"Unknown model type ('{model_type}'). \
-                Please slect one of the following: {BASE_MODELS.keys()}")
+                Please select one of the following: {BASE_MODELS.keys()}")
         if model_type == 'DQN':
             kwargs['double_q'] = False
         elif model_type == 'DDQN':
@@ -95,7 +95,7 @@ class RLModel(BaseModel):
         timesteps: int = 70000,
         callback: BaseCallback | None = None,
         log_interval: int = 1000,
-        reset_timesteps: bool = True,
+        reset_timesteps: bool = False,
         progress_bar: bool = True,
         tb_log_name: str | os.PathLike = './outputs/logs',
         output_dir: str | os.PathLike = './outputs',
@@ -103,10 +103,9 @@ class RLModel(BaseModel):
         save_interval: int | None = None,
         save_at_end: bool = True,
         **kwargs
-        ):
+        ) -> None:
 
         for epoch in range(epochs):
-            print(f"===>>>> EPOCH # {epoch}")
             self.model.learn(
                 total_timesteps = timesteps, 
                 reset_num_timesteps = reset_timesteps, 
@@ -125,11 +124,11 @@ class RLModel(BaseModel):
             save_dir = os.path.join(output_dir, f"final")
             self.save_to_disk(save_dir, model_name = 'model')
     
-    def predict(self, obs: np.ndarray):
+    def predict(self, obs: np.ndarray) -> np.ndarray:
         return self.model.predict(obs)
 
     
-    def save_to_disk(self, save_dir: str | os.PathLike, model_name = 'model'):
+    def save_to_disk(self, save_dir: str | os.PathLike, model_name = 'model') -> None:
         os.makedirs(save_dir, exist_ok=True)
         self.model.save(os.path.join(save_dir, f"{model_name}.bin"))
 
@@ -139,7 +138,7 @@ class RLModel(BaseModel):
         model_type: Literal['PPO','A2C','QRDQN','DQN','DDQN'],
         model_weights: str | os.PathLike,
         **kwargs,
-        ):
+        ) -> RLModel:
         if not os.path.isfile(f"{model_weights}"):
             raise FileNotFoundError(f"File '{model_weights}' does not exist.")
 
