@@ -1,6 +1,11 @@
 .venv/
 __pycache__/
 *.pyc
+data/demographics/
+data/demographics/
+data/docs/
+data/legacy/
+notebooks/
 legacy/
 outputs/
 pandemic_control.egg-info/
