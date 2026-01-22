@@ -1,6 +1,6 @@
 # RL PANDEMIC Project*
 
-Bla bla
+This repository contains the code used for our paper "". It implements the SEIRADHV environment which we use to simulate the covid pandemic spread, and the RL model to control it.
 
 ## Installation
 ### Requirements
@@ -75,15 +75,6 @@ pandemic-control
 
 --
 **Important note:** Note.
-
-## Title 2
-
-Bla bla.
-
-###  Sub-Title 2.1
-Bla bla:
-
-- script1.sh: blabla.
 
 
 ## Citation
