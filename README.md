@@ -69,9 +69,12 @@ pandemic-control
 ├── README.md
 └── uv.lock
 ```
+
 ### Implementing your own environment
+#### The `Base_Env` interface
 ### Implementing your own model
-### Testing your model
+#### The `BaseModel` interface
+### Testing your custom model
 
 --
 **Important note:** Note.

@@ -1,4 +1,5 @@
 import pandas as pd
+from loguru import logger
 from typing import (
     List, 
     Dict,
@@ -85,8 +86,8 @@ def update_variance_struct(
     if (not episode_data) or (not isinstance(episode_data, dict)):
         raise ValueError(f"Second argument should be a non empty dictionary.")
     if not set(data_variance.keys()).issubset(episode_data.keys()):
-        print(f"data_variance.keys() == {data_variance.keys()}")
-        print(f"episode_data.keys() == {episode_data.keys()}")
+        logger.info(f"data_variance.keys() == {data_variance.keys()}")
+        logger.info(f"episode_data.keys() == {episode_data.keys()}")
         raise ValueError(f"Main structure keys should all be included in the second one.")
     for k in data_variance.keys():
         data_variance[f'{k}'] = [*data_variance[f'{k}'], *episode_data[f'{k}']]

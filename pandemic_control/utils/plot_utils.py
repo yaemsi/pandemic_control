@@ -751,7 +751,7 @@ def plot_heatmap(
     vmin: float = 0.,
     vmax: float = .26,
     show_plot: bool = True,
-    ):
+    ) -> None:
 
     _, axis = plt.subplots(1, 1, figsize=figsize, facecolor=f"{facecolor}")  
     p = sns.heatmap(data.T, vmin=vmin, vmax=vmax, cmap=f"{color_map}", ax=axis)

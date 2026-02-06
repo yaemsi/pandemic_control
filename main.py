@@ -200,6 +200,11 @@ if __name__ == '__main__':
         help='Whether to show plot or not.', 
         default = True
         )
+    parser.add_argument(
+        'wandb_project', 
+        help='Indicates the wandb project name. If None, wandb callbacks are disabled', 
+        default = 'pandemic-control',
+        )
     args = parser.parse_args()
 
     main(args.name)

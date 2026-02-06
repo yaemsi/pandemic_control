@@ -2,11 +2,17 @@ import os
 import sys
 import json
 import argparse
+import wandb
 
 import numpy as np
 import pandas as pd
 
 from loguru import logger
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common import results_plotter
+from wandb.integration.sb3 import WandbCallback
+
+
 
 from pandemic_control.utils import (
     run_simulation_const_policy,
@@ -66,9 +72,31 @@ def run_model_policy_simulations(args: argparse.Namespace) -> None:
     logger.info(f"*** Loading '{args.model_type}' agent.")
     #output_dir = f"./outputs/basic_tests/rl_model/saved_weights/{args.env_type.lower()}_{args.model_type.lower()}"
     output_dir = f"{args.output_dir}/saved_weights/{args.env_type.lower()}_{args.model_type.lower()}"
+    log_dir = f"./outputs/basic_tests/rl_model/logs"
+
+
+    if args.wandb_project:
+        cb = WandbCallback(
+            project=args.wandb_project,
+            verbose=2,
+        )
+        config = {
+            "policy_type": "MlpPolicy",
+            "total_timesteps": args.timesteps,
+            "env_name": args.env_type,
+        }
+        logger.info(f"Initializing wandb")
+        run = wandb.init(
+            project=f"{args.wandb_project}",
+            config=config,
+            sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
+            save_code=True,  # optional
+        )
+    else:
+        cb = RewardCallback(log_dir = log_dir)
 
     model = RLModel.from_metadata (
-        env = env,
+        env = Monitor(env, log_dir),
         model_type = f"{args.model_type}",
         device = f"cpu",
         seed = args.seed,
@@ -79,7 +107,8 @@ def run_model_policy_simulations(args: argparse.Namespace) -> None:
     )
     
     logger.info(f"*** Starting training.")
-    cb = RewardCallback()
+    
+    cb = RewardCallback(log_dir = log_dir)
     model.train(
         timesteps = args.timesteps,
         output_dir = output_dir,
@@ -88,15 +117,22 @@ def run_model_policy_simulations(args: argparse.Namespace) -> None:
         save_interval = args.save_interval,
         callback = cb,
     )
-    logger.info (f"################### cb.counter == {cb.counter}")
-    logger.info (f"################### len(cb.episode_rewards) == {len(cb.episode_rewards)}")
+    #logger.info (f"################### cb.counter == {cb.counter}")
+    #logger.info (f"################### len(cb.episode_rewards) == {len(cb.episode_rewards)}")
+    logger.info(f"Plotting training curves...")
+    results_plotter.plot_results(
+        dirs = [log_dir],
+        num_timesteps = args.timesteps,
+        xaxis = results_plotter.X_TIMESTEPS,
+        title = f"Training curves",
+    )
+
     logger.info(f"*** Loading model from disk.")
     model = RLModel.load_from_disk(
         model_type = f"{args.model_type}",
         model_weights = os.path.join(f"{output_dir}", f"final", f"model.bin"),
         device=f"cpu",
     )
-
     logger.info(f"*** Running one simulation.")
 
     logger.info(f"*** Plotting curves based on one years' data")

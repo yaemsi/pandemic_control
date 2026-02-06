@@ -10,21 +10,25 @@ from abc import (
     abstractmethod,
 )
 from loguru import logger
-from sb3_contrib import QRDQN
+from sb3_contrib import TRPO
 from stable_baselines3 import (
     PPO,
     DQN,
     A2C,
 )
 from stable_baselines3.common.callbacks import BaseCallback
-from stable_baselines3.common.monitor import Monitor
-from typing import Literal
+from typing import (
+    Literal,
+    Optional,
+    Dict,
+    Any,
+)
 from pandemic_control.environment import Base_Env
 
 BASE_MODELS = {
     'PPO': PPO,
     'A2C': A2C,
-    'QRDQN': QRDQN,
+    'TRPO': TRPO,
     'DQN': DQN,
     'DDQN': DQN,
 }
@@ -33,27 +37,49 @@ BASE_MODELS = {
 class BaseModel(ABC):
 
     @abstractmethod
-    def __init__(self, **kwargs):
+    def __init__(
+        self, 
+        **kwargs: Optional[Dict[str, Any]]
+        ) -> None:
         """ To implement in sublasses """
     
-    def train(self, **kwargs) -> None:
+    def train(
+        self, 
+        **kwargs: Optional[Dict[str, Any]]
+        ) -> None:
         raise NotImplementedError(f"Please implement this method in a subclass.")
     
-    def predict(self, **kwargs) -> np.ndarray:
+    def predict(
+        self, 
+        obs: np.ndarray,
+        **kwargs: Optional[Dict[str, Any]]
+        ) -> np.ndarray:
         raise NotImplementedError(f"Please implement this method in a subclass.")
     
-    def save_to_disk(self, save_dir: str | os.PathLike, **kwargs) -> None:
+    def save_to_disk(
+        self, 
+        save_dir: str | os.PathLike, 
+        **kwargs: Optional[Dict[str, Any]]
+        ) -> None:
         raise NotImplementedError(f"Please implement this method in a subclass.")
     
     @classmethod
-    def load_from_disk(cls, model_weights: str | os.PathLike, **kwargs) -> BaseModel:
+    def load_from_disk(
+        cls, 
+        model_weights: str | os.PathLike, 
+        **kwargs: Optional[Dict[str, Any]]
+        ) -> BaseModel:
         raise NotImplementedError(f"Please implement this method in a subclass.")
 
         
 
 class RLModel(BaseModel):
     
-    def __init__(self, model: ABC | nn.Module, **kwargs) -> None:
+    def __init__(
+        self, 
+        model: ABC | nn.Module, 
+        **kwargs: Optional[Dict[str, Any]]
+        ) -> None:
         if not model:
             raise ValueError(f"Model cannot be nil.")
         self.model = model
@@ -66,11 +92,11 @@ class RLModel(BaseModel):
     def from_metadata(
         cls,
         env: Base_Env,
-        model_type: Literal['PPO','A2C','QRDQN','DQN','DDQN'],
+        model_type: Literal['PPO','A2C','TRPO','DQN','DDQN'],
         device: torch.device | str = "cpu",
         seed: int = 33,
         verbose: int = 1,
-        **kwargs,
+        **kwargs: Optional[Dict[str, Any]],
         ) -> RLModel:
         if not model_type in BASE_MODELS.keys():
             raise ValueError(f"Unknown model type ('{model_type}'). \
@@ -81,7 +107,7 @@ class RLModel(BaseModel):
             kwargs['double_q'] = True
         model = BASE_MODELS[model_type](
             policy = "MlpPolicy",
-            env = Monitor(env), 
+            env = env, 
             device = device, 
             seed = seed, 
             verbose = verbose, 
@@ -102,7 +128,7 @@ class RLModel(BaseModel):
         epochs: int = 50,
         save_interval: int | None = None,
         save_at_end: bool = True,
-        **kwargs
+        **kwargs: Optional[Dict[str, Any]],
         ) -> None:
 
         for epoch in range(epochs):
@@ -128,20 +154,23 @@ class RLModel(BaseModel):
         return self.model.predict(obs)
 
     
-    def save_to_disk(self, save_dir: str | os.PathLike, model_name = 'model') -> None:
+    def save_to_disk(
+        self, 
+        save_dir: str | os.PathLike, 
+        model_name: str = 'model'
+        ) -> None:
         os.makedirs(save_dir, exist_ok=True)
         self.model.save(os.path.join(save_dir, f"{model_name}.bin"))
 
     @classmethod
     def load_from_disk(
         cls,
-        model_type: Literal['PPO','A2C','QRDQN','DQN','DDQN'],
+        model_type: Literal['PPO','A2C','TRPO','DQN','DDQN'],
         model_weights: str | os.PathLike,
-        **kwargs,
+        **kwargs: Optional[Dict[str, Any]],
         ) -> RLModel:
         if not os.path.isfile(f"{model_weights}"):
             raise FileNotFoundError(f"File '{model_weights}' does not exist.")
-
         try:
             model = BASE_MODELS[model_type].load(f"{model_weights}", **kwargs)
         except Exception as e:

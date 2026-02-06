@@ -1,3 +1,4 @@
+from loguru import logger
 from stable_baselines3.common.callbacks import BaseCallback
 
 from .costs import economy_reward_dynamic as economy_reward
@@ -11,7 +12,7 @@ def reward(self, action, prev_obs):
     iw = self.health_weights[0]
     hw = self.health_weights[1]
     dw = self.health_weights[2]
-    #print("new")
+    #logger.info("new")
     #hosp_margin = 0.7*self.hospital_capacity
     hosp_margin = 0.1*self.hospital_capacity
     eco_cost = self.actions[int(action)][1]
@@ -45,7 +46,7 @@ def reward20(self, action, prev_obs):
     iw = self.health_weights[0]
     hw = self.health_weights[1]
     dw = self.health_weights[2]
-    #print("new")
+    #logger.info("new")
     hosp_margin = 0.7*self.hospital_capacity
     eco_cost = self.actions[int(action)][1]
     inf_cost = -(self.I_a+self.I_s)/self.N
@@ -120,5 +121,5 @@ class RewardCallback(BaseCallback):
             self.episode_rewards.append(self.current_episode_reward)
             self.current_episode_reward = 0.
             if self.verbose > 0:
-                print(f"Episode finished, total reward: {self.episode_rewards[-1]}")
+                logger.info(f"Episode finished, total reward: {self.episode_rewards[-1]}")
         return True
