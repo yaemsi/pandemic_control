@@ -6,8 +6,8 @@ This repository contains the code used for our paper "". It implements the SEIRA
 ### Requirements
 Please make sure to have the following installed within a linux environment:
 - Uv 
-- Python (>= 3.13)
-- Cuda (>= 13.1)
+- Python (>= 3.12)
+- Cuda (>= 13.0)
 
 ### Installing the project
 1. Compile the uv lock file to a requiements file:
