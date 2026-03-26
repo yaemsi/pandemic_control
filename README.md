@@ -21,7 +21,6 @@ Please make sure to have the following installed within a linux environment:
 This repo uses `pre-commit` to run:
 - `black` formatting
 - `ruff` linting (with `--fix`)
-- `mypy` type checking (runs on `pre-push`)
 
 After installing the project and activating the venv, install the git hooks:
 `pre-commit install --hook-type pre-commit --install-hooks`

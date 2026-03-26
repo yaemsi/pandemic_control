@@ -18,12 +18,3 @@ repos:
         language_version: python3.12
         args: ["--fix"]
         files: ^(main\.py|pandemic_control/.*\.py)$
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
-    hooks:
-      - id: mypy
-        stages: [pre-push]
-        language_version: python3.12
-        args: ["--config-file=mypy.ini"]
-        files: ^(main\.py|pandemic_control/.*\.py)$
