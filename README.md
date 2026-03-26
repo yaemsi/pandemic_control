@@ -6,20 +6,29 @@ This repository contains the code used for our paper "". It implements the SEIRA
 ### Requirements
 Please make sure to have the following installed within a linux environment:
 - Uv 
-- Python (>= 3.12)
-- Cuda (>= 13.0)
+- Python (== 3.12.12)
+- Cuda (== 13.0)
 
 ### Installing the project
-1. Compile the uv lock file to a requiements file:
-`uv pip compile pyproject.toml -o requirements.txt`
-2. Create a virtual environment: 
-`uv venv <path-to-your-virtual-environment>`
-3. Activate your virtual environment:
-`source <path-to-your-virtual-environment>/bin/activate`
-4. Install the dependencies:
-`uv add -r requirements.txt`
-5. Install the project
+1. Install the dependencies:
+`uv sync --frozen`
+2. Activate the environment
+`source .venv/bin/activate`
+3. Install the framework
 `uv pip install -e .`
+
+## Code Quality (pre-commit / pre-push)
+This repo uses `pre-commit` to run:
+- `black` formatting
+- `ruff` linting (with `--fix`)
+- `mypy` type checking (runs on `pre-push`)
+
+After installing the project and activating the venv, install the git hooks:
+`pre-commit install --hook-type pre-commit --install-hooks`
+`pre-commit install --hook-type pre-push --install-hooks`
+
+To run everything manually:
+`pre-commit run --all-files`
 
 
 ## Using the framwork

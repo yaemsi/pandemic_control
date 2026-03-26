@@ -1,0 +1,29 @@
+default_language_version:
+  python: python3.12
+
+repos:
+  - repo: https://github.com/psf/black-pre-commit-mirror
+    rev: 24.4.2
+    hooks:
+      - id: black
+        stages: [pre-commit, pre-push]
+        language_version: python3.12
+        files: ^(main\.py|pandemic_control/.*\.py)$
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.7
+    hooks:
+      - id: ruff
+        stages: [pre-commit, pre-push]
+        language_version: python3.12
+        args: ["--fix"]
+        files: ^(main\.py|pandemic_control/.*\.py)$
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.15.0
+    hooks:
+      - id: mypy
+        stages: [pre-push]
+        language_version: python3.12
+        args: ["--config-file=mypy.ini"]
+        files: ^(main\.py|pandemic_control/.*\.py)$
