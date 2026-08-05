@@ -3,9 +3,8 @@ from .base import (
     BaseModel,
     RLModel,
 )
-
 __all__ = [
     "BASE_MODELS",
     "BaseModel",
     "RLModel",
-]
+    ]

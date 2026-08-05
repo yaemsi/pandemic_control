@@ -1,264 +1,286 @@
-import argparse
-import json
 import os
 import sys
+import json
 
 import numpy as np
 import pandas as pd
-import wandb
-from loguru import logger
-from stable_baselines3.common import results_plotter
-from stable_baselines3.common.monitor import Monitor
-from wandb.integration.sb3 import WandbCallback
 
+from loguru import logger
+from stable_baselines3.common.callbacks import BaseCallback
+
+from pandemic_control.utils.arguments import Args
+from pandemic_control.utils import (
+    run_simulation_const_policy,
+    plot_env_dynamics,
+    plot_env_metrics,
+    plot_with_variance,
+    plot_actions,
+    run_simulation,
+    run_n_simulations,
+    run_env_sim,
+    plot_heatmap,
+    plot_rewards
+)
 from pandemic_control.model import (
     RLModel,
 )
-from pandemic_control.utils import (
-    RewardCallback,
-    plot_actions,
-    plot_env_dynamics,
-    plot_env_metrics,
-    plot_heatmap,
-    plot_with_variance,
-    run_env_sim,
-    run_n_simulations,
-    run_simulation,
-    run_simulation_const_policy,
+from pandemic_control.environment import(
+    SIR_Env,
+    SEIR_Env,
+    SEIRD_Env,
+    SEIRAD_Env,
+    SEIRADH_Env,
+    SEIRADHV_Env
 )
 
-
-def run_const_policy_simulations(args: argparse.Namespace) -> None:
+def run_const_policy_simulations(args: Args) -> None:
     logger.info(f"*** Loading '{args.env_type}' environment.\n")
     CLS = getattr(sys.modules[__name__], f"{args.env_type}_Env")
     env = CLS(args.cfg_file)
     env.reset(seed=args.seed)
-    for mode in ["no_restr", "soc_dist", "lockdown", "random"]:
+    for mode in ['no_restr', 'soc_dist', 'lockdown', 'random']:
         logger.info(f"*** Running simulation with '{mode}' policy...")
         data = run_simulation_const_policy(
-            env=env, t_max=args.t_max, mode=mode, seed=args.seed
-        )
+            env=env, 
+            t_max=args.t_max, 
+            mode=mode, 
+            seed=args.seed
+            )
         data = pd.DataFrame(data)
-        logger.info("*** Generating plots...")
+        logger.info(f"*** Generating plots...")
         plot_env_dynamics(
             plot_data=data,
-            # rootdir=f"{args.output_dir}/basic_tests/const_policy/figures",
-            rootdir=f"{args.output_dir}",
+            rootdir=os.path.jopin(f"{args.output_dir}", f"{args.env_type}_{mode}"),
             filename=f"{args.env_type.lower()}_{mode.lower()}_dynamics",
+            show_plot=args.show_plot,
         )
-        logger.info("*** Done.\n\n")
+        logger.info(f"*** Done.\n\n")
 
-
-def run_model_policy_simulations(args: argparse.Namespace) -> None:
+def run_model_policy_simulations(
+        args: Args,
+        callback: BaseCallback | None = None) -> list[float]:
+    
     logger.info(f"*** Loading '{args.env_type}' environment.")
     CLS = getattr(sys.modules[__name__], f"{args.env_type}_Env")
     env = CLS(args.cfg_file)
     env.reset(seed=args.seed)
 
-    # rootdir=f"./outputs/basic_tests/rl_model"
-    rootdir = f"{args.output_dir}"
+    #rootdir=f"./outputs/basic_tests/rl_model"
     logger.info(f"*** Loading '{args.model_type}' agent.")
-    # output_dir = f"./outputs/basic_tests/rl_model/saved_weights/{args.env_type.lower()}_{args.model_type.lower()}"
-    output_dir = f"{args.output_dir}/saved_weights/{args.env_type.lower()}_{args.model_type.lower()}"
-    log_dir = "./outputs/basic_tests/rl_model/logs"
+    #output_dir = f"./outputs/basic_tests/rl_model/saved_weights/{args.env_type.lower()}_{args.model_type.lower()}"
+    output_dir = f"{args.output_dir}/basic_tests/{args.env_type.lower()}_{args.model_type.lower()}"
 
-    if args.wandb_project:
-        cb = WandbCallback(
-            project=args.wandb_project,
-            verbose=2,
-        )
-        config = {
-            "policy_type": "MlpPolicy",
-            "total_timesteps": args.timesteps,
-            "env_name": args.env_type,
-        }
-        logger.info("Initializing wandb")
-        run = wandb.init(
-            project=f"{args.wandb_project}",
-            config=config,
-            sync_tensorboard=True,  # auto-upload sb3's tensorboard metrics
-            save_code=True,  # optional
-        )
-    else:
-        cb = RewardCallback(log_dir=log_dir)
-
-    model = RLModel.from_metadata(
-        env=Monitor(env, log_dir),
-        model_type=f"{args.model_type}",
-        device="cpu",
-        seed=args.seed,
-        verbose=1,
-        tensorboard_log="./outputs/basic_tests/rl_model/logs",
-        # n_steps = args.t_max,
-        # batch_size = args.t_max,
+    model = RLModel.from_metadata (
+        env = env,
+        model_type = f"{args.model_type}",
+        device = f"cpu",
+        seed = args.seed,
+        verbose = 1,
+        tensorboard_log = os.path.join(f"{output_dir}", "logs"),
+        n_steps = args.t_max//env.days,
+        batch_size = args.t_max//env.days,
     )
-
-    logger.info("*** Starting training.")
-
-    cb = RewardCallback(log_dir=log_dir)
+    
+    logger.info(f"*** Starting training.")
     model.train(
-        timesteps=args.timesteps,
-        output_dir=output_dir,
-        tb_log_name=f"{args.env_type.lower()}_history",
-        epochs=args.epochs,
-        save_interval=args.save_interval,
-        callback=cb,
+        timesteps = args.timesteps,
+        output_dir = os.path.join(f"{output_dir}", "saved_weights"),
+        tb_log_name = f"{args.env_type.lower()}_history",
+        epochs = args.epochs,
+        save_interval = args.save_interval,
+        callback = callback,
     )
-    # logger.info (f"################### cb.counter == {cb.counter}")
-    # logger.info (f"################### len(cb.episode_rewards) == {len(cb.episode_rewards)}")
-    logger.info("Plotting training curves...")
-    results_plotter.plot_results(
-        dirs=[log_dir],
-        num_timesteps=args.timesteps,
-        xaxis=results_plotter.X_TIMESTEPS,
-        title="Training curves",
-    )
+    logger.info(f"*** Training done. Plotting rewards curves.")
+    plot_rewards(
+        plot_data=pd.DataFrame(callback.episode_rewards, columns=['PPO']),
+        rootdir=f"{args.output_dir}/figures",
+        filename='reward_per_episode',
+        labels=['PPO'],
+        figsize = (10, 8),
+        facecolor= "#ffffff",
+        xlabel = 'Episodes',
+        ylabel = 'Reward',
+        title = None,
+        legend_title = 'Models',
+        legend_loc = "best",
+        smooth_window = None,
+        show_plot= True
+        )
 
-    logger.info("*** Loading model from disk.")
+    plot_rewards(
+        plot_data=pd.DataFrame(callback.step_rewards, columns=['PPO']),
+        rootdir=f"{args.output_dir}/figures",
+        filename='reward_per_step',
+        labels=['PPO'],
+        figsize = (10, 8),
+        facecolor= "#ffffff",
+        xlabel = 'Steps',
+        ylabel = 'Reward',
+        title = None,
+        legend_title = 'Models',
+        legend_loc = "best",
+        smooth_window = env.max_steps,
+        show_plot= True
+    )
+    
+    logger.info(f"*** Loading model from disk.")
+
+
     model = RLModel.load_from_disk(
-        model_type=f"{args.model_type}",
-        model_weights=os.path.join(f"{output_dir}", "final", "model.bin"),
-        device="cpu",
+        model_type = f"{args.model_type}",
+        model_weights = os.path.join(f"{output_dir}", "saved_weights", f"final", f"model.bin"),
+        device=f"cpu",
     )
-    logger.info("*** Running one simulation.")
 
-    logger.info("*** Plotting curves based on one years' data")
+    logger.info(f"*** Running one simulation.")
+
+    logger.info(f"*** Plotting curves based on one years' data")
     data = run_simulation(
-        env=env,
-        model=model,
-        t_max=args.t_max,
+        env = env,
+        model = model, 
+        t_max = args.t_max,
     )
     data = pd.DataFrame(data)
     plot_env_dynamics(
         plot_data=data.head(args.t_max),
-        rootdir=f"{rootdir}/figures",
+        rootdir=f"{output_dir}/figures",
         filename=f"{args.env_type.lower()}_{args.model_type.lower()}_dynamics",
+        show_plot=args.show_plot,
     )
 
     plot_env_metrics(
         plot_data=data,
-        rootdir=f"{rootdir}/figures",
+        rootdir=f"{output_dir}/figures",
         filename=f"metrics_{args.env_type.lower()}_{args.model_type.lower()}",
+        show_plot=args.show_plot,
     )
-
+    
     logger.info(f"*** Running {args.rounds} simulations.")
     data = run_n_simulations(
-        env=env,
-        model=model,
-        rounds=args.rounds,
-        t_max=args.t_max,
-    )
-    logger.info("*** Simulations complete. Generating variance plots.")
+        env = env, 
+        model = model, 
+        rounds = args.rounds,
+        t_max = args.t_max,
+        )
+    logger.info(f"*** Simulations complete. Generating variance plots.")
     data = pd.DataFrame(data)
-
+    
     # Compartments
     plot_with_variance(
-        plot_data=data, rootdir=f"{rootdir}/figures", filename="dynamics_variance"
-    )
+        plot_data=data,
+        rootdir=f"{output_dir}/figures",
+        filename=f"dynamics_variance",
+        show_plot=args.show_plot,
+        )
 
     # Actions
     plot_actions(
         plot_data=data,
-        rootdir=f"{rootdir}/figures",
-        filename="actions_variance",
-    )
+        rootdir=f"{output_dir}/figures",
+        filename=f"actions_variance",
+        show_plot=args.show_plot,
+        )
 
-    logger.info("*** Simulations completed.")
+    logger.info(f"*** Simulations completed.")
 
-
-def plot_heatmaps_pop_size(args: argparse.Namespace) -> None:
+def plot_heatmaps_pop_size(args: Args) -> None:
     filepath = f"{args.cfg_file}"
     rootdir = f"{args.output_dir}/heatmaps"
-    with open(filepath) as fp:
+    with open(filepath, 'r') as fp:
         config = json.load(fp)
 
     """
     Deaths, hospitalizations and infections as functions of population size
     """
     logger.info(
-        "*** Plotting deaths, hospitalizations and infections as functions \
+        f"*** Plotting deaths, hospitalizations and infections as functions \
         of population size."
-    )
+        )
     pop_sizes = [500, 5000, 50000, 500000, 5000000, 50000000, 500000000]
-    hosp_caps = [15, 300, 300, 300, 3000, 3000, 100000]
+    hosp_caps = [15 ,300, 300, 300, 3000, 3000, 100000]
 
     dth_data_size = {}
     inf_data_size = {}
     hsp_data_size = {}
 
     for N, hosp_cap in zip(pop_sizes, hosp_caps):
-        config["N"] = N
-        config["hosp_cap"] = hosp_cap
+        config[f'N'] = N
+        config[f'hosp_cap'] = hosp_cap
         CLS = getattr(sys.modules[__name__], f"{args.env_type}_Env")
         env = CLS(args.cfg_file)
         env.reset(seed=args.seed)
-        # env = SEIRADHV_Env(config)
+        #env = SEIRADHV_Env(config)
 
         run_data = run_env_sim(
-            env=env,
-            t_max=config["env-params"]["max_steps"],
-            mode="Test",
-            selected_action=0,
+            env = env,  
+            t_max = config['env-params']['max_steps'], 
+            mode = "Test",
+            selected_action = 2
+            )
+        
+        dth_data_size[f'{N}'] = np.array(run_data['Deceased'])/N
+        inf_data_size[f'{N}'] = np.array(run_data['Infected'])/N
+        hsp_data_size[f'{N}'] = np.array(run_data['Hospitalized'])/N
+
+
+    plot_heatmap(
+        data = pd.DataFrame(dth_data_size),
+        rootdir = f"{rootdir}", 
+        filename = f"pop_size_deaths",
+        color_map = "magma_r",
+        xlabel = f"Days", 
+        ylabel = f"Population size",
+        title = f"Deaths rate",
+        vmin=0, 
+        vmax=.066,
+        show_plot = args.show_plot,
         )
 
-        dth_data_size[f"{N}"] = np.array(run_data["Deceased"]) / N
-        inf_data_size[f"{N}"] = np.array(run_data["Infected"]) / N
-        hsp_data_size[f"{N}"] = np.array(run_data["Hospitalized"]) / N
+    plot_heatmap(
+        data = pd.DataFrame(inf_data_size), 
+        rootdir = f"{rootdir}", 
+        filename = f"pop_size_infections",
+        color_map = "RdPu",
+        xlabel = f"Days", 
+        ylabel = f"Population size",
+        title = f"Infections rate",
+        vmin=0, 
+        vmax=.26,
+        show_plot = args.show_plot,
+        )
 
     plot_heatmap(
-        data=pd.DataFrame(dth_data_size),
-        rootdir=f"{rootdir}",
-        filename="pop_size_deaths",
-        color_map="magma_r",
-        xlabel="Days",
-        ylabel="Population size",
-        title="Deaths rate",
-        vmin=0,
-        vmax=0.066,
-    )
-
-    plot_heatmap(
-        data=pd.DataFrame(inf_data_size),
-        rootdir=f"{rootdir}",
-        filename="pop_size_infections",
-        color_map="RdPu",
-        xlabel="Days",
-        ylabel="Population size",
-        title="Infections rate",
-        vmin=0,
-        vmax=0.26,
-    )
-
-    plot_heatmap(
-        data=pd.DataFrame(hsp_data_size),
-        rootdir=f"{rootdir}",
-        filename="pop_size_hospitalizations",
-        color_map="viridis_r",
-        xlabel="Days",
-        ylabel="Population size",
-        title="Hospitalizations rate",
-        vmin=0,
-        vmax=0.115,
-    )
-    logger.info("*** Done.")
+        data = pd.DataFrame(hsp_data_size), 
+        rootdir = f"{rootdir}", 
+        filename = f"pop_size_hospitalizations",
+        color_map = "viridis_r",
+        xlabel = f"Days", 
+        ylabel = f"Population size",
+        title = f"Hospitalizations rate",
+        vmin=0, 
+        vmax=.115,
+        show_plot = args.show_plot,
+        )
+    logger.info(f"*** Done.")
 
 
-def plot_heatmaps_ph_pd(args: argparse.Namespace) -> None:
+def plot_heatmaps_ph_pd(args: Args) -> None:
     filepath = f"{args.cfg_file}"
     rootdir = f"{args.output_dir}/heatmaps"
-    with open(filepath) as fp:
+    with open(filepath, 'r') as fp:
         config = json.load(fp)
     """
     Deaths, hospitalizations, infections, cummulative hospitalizations 
     and cummulative infections as functions of population resistance
     """
     logger.info(
-        "*** Plotting deaths, hospitalizations, infections, cummulative \
+        f"*** Plotting deaths, hospitalizations, infections, cummulative \
         hospitalizations and cummulative infections as functions of \
         population resistance."
-    )
+        )
     phs = [0.5, 0.45, 0.4, 0.35, 0.3, 0.25, 0.2, 0.15, 0.1]
-    pds = [0.01, 0.03, 0.05, 0.08, 0.1, 0.11, 0.15, 0.2, 0.25, 0.3]
+    pds = [0.01, 0.03 , 0.05, 0.08, 0.1, 0.11, 0.15, 0.2, 0.25, 0.3]
+
 
     dth_data_type_max = {}
     inf_data_type_max = {}
@@ -270,111 +292,119 @@ def plot_heatmaps_ph_pd(args: argparse.Namespace) -> None:
         dth_max = []
         hsp_max = []
         inf_max = []
-
+        
         inf_cumul = []
         hsp_cumul = []
         for p_d in pds:
-            config["spec-params"]["probas"] = [
-                0.8,  # Probability of symptomatic covid
-                p_h,  # Probability of hospitalization
-                p_d,  # Probability of death in hospital
-                0.0727,  # Probability of death
-            ]
+            config["spec-params"]["probas"] =  [
+                0.8,    # Probability of symptomatic covid
+                p_h,    # Probability of hospitalization
+                p_d,    # Probability of death in hospital
+                0.0727  # Probability of death
+                ] 
 
             CLS = getattr(sys.modules[__name__], f"{args.env_type}_Env")
             env = CLS(args.cfg_file)
             env.reset(seed=args.seed)
             run_data = run_env_sim(
-                env=env,
-                t_max=config["env-params"]["max_steps"],
-                mode="Test",
-                selected_action=0,
-            )
+                env=env,  
+                t_max = config['env-params']['max_steps'], 
+                mode = "Test",
+                selected_action = 0
+                )
+                
+            #append max
+            N = config['env-params']['N']
+            inf_max.append(max(np.array(run_data['Infected']))/N)
+            hsp_max.append(max(np.array(run_data['Hospitalized']))/N)
+            dth_max.append(max(np.array(run_data['Deceased']))/N)
+                
+            #append cumul
+            inf_cumul.append(run_data['Infected_cumul'][-1]/N)
+            hsp_cumul.append(run_data['Hospitalized_cumul'][-1]/N)
+            
+        inf_data_type_max[f'{p_h}'] = inf_max
+        hsp_data_type_max[f'{p_h}'] = hsp_max
+        dth_data_type_max[f'{p_h}'] = dth_max
+        inf_data_type_cumul[f'{p_h}'] = inf_cumul
+        hsp_data_type_cumul[f'{p_h}'] = hsp_cumul
 
-            # append max
-            N = config["env-params"]["N"]
-            inf_max.append(max(np.array(run_data["Infected"])) / N)
-            hsp_max.append(max(np.array(run_data["Hospitalized"])) / N)
-            dth_max.append(max(np.array(run_data["Deceased"])) / N)
-
-            # append cumul
-            inf_cumul.append(run_data["Infected_cumul"][-1] / N)
-            hsp_cumul.append(run_data["Hospitalized_cumul"][-1] / N)
-
-        inf_data_type_max[f"{p_h}"] = inf_max
-        hsp_data_type_max[f"{p_h}"] = hsp_max
-        dth_data_type_max[f"{p_h}"] = dth_max
-        inf_data_type_cumul[f"{p_h}"] = inf_cumul
-        hsp_data_type_cumul[f"{p_h}"] = hsp_cumul
 
     # plotting heatmaps
     plot_heatmap(
-        data=pd.DataFrame(inf_data_type_max, index=pds),
-        rootdir=f"{rootdir}",
-        filename="infections",
-        color_map="RdPu",
-        xlabel="Death probability",
-        ylabel="Hospitalization probability",
+        data = pd.DataFrame(inf_data_type_max, index=pds),
+        rootdir = f"{rootdir}",
+        filename = f"infections",
+        color_map = "RdPu",
+        xlabel="Death probability", 
+        ylabel="Hospitalization probability", 
         title="Infection peaks",
-        vmin=0,
-        vmax=1,
-    )
+        vmin= 0,
+        vmax= 1,
+        show_plot = args.show_plot,
+        )
 
     plot_heatmap(
-        data=pd.DataFrame(hsp_data_type_max, index=pds),
-        rootdir=f"{rootdir}",
-        filename="hospitalizations",
-        color_map="viridis_r",
-        xlabel="Death probability",
-        ylabel="Hospitalization probability",
+        data = pd.DataFrame(hsp_data_type_max, index=pds),
+        rootdir = f"{rootdir}",
+        filename = f"hospitalizations",
+        color_map = "viridis_r",
+        xlabel="Death probability", 
+        ylabel="Hospitalization probability", 
         title="Hospitalization peaks",
-        vmin=0.0,
-        vmax=0.4,
-    )
+        vmin= 0.,
+        vmax= .4,
+        show_plot = args.show_plot,
+        )
 
     plot_heatmap(
-        data=pd.DataFrame(dth_data_type_max, index=pds),
-        rootdir=f"{rootdir}",
-        filename="deaths",
-        color_map="magma_r",
-        xlabel="Death probability",
-        ylabel="Hospitalization probability",
+        data = pd.DataFrame(dth_data_type_max, index=pds),
+        rootdir = f"{rootdir}",
+        filename = f"deaths",
+        color_map = "magma_r",
+        xlabel="Death probability", 
+        ylabel="Hospitalization probability", 
         title="Death peaks",
-        vmin=0.0,
-        vmax=0.5,
-    )
+        vmin= 0.,
+        vmax= .5,
+        show_plot = args.show_plot,
+        )
+
 
     plot_heatmap(
-        data=pd.DataFrame(inf_data_type_cumul, index=pds),
-        rootdir=f"{rootdir}",
-        filename="cum_infections",
-        color_map="viridis_r",
-        xlabel="Death probability",
-        ylabel="Hospitalization probability",
+        data = pd.DataFrame(inf_data_type_cumul , index=pds),
+        rootdir = f"{rootdir}",
+        filename = f"cum_infections",
+        color_map = "viridis_r",
+        xlabel="Death probability", 
+        ylabel="Hospitalization probability", 
         title="Cummulative infections",
-        vmin=0.0,
-        vmax=1.0,
-    )
+        vmin= 0.,
+        vmax= 1.,
+        show_plot = args.show_plot,
+        )
+
 
     plot_heatmap(
-        data=pd.DataFrame(hsp_data_type_cumul, index=pds),
-        rootdir=f"{rootdir}",
-        filename="cum_hospitalizations",
-        color_map="YlGnBu",
-        xlabel="Death probability",
-        ylabel="Hospitalization probability",
+        data = pd.DataFrame(hsp_data_type_cumul , index=pds),
+        rootdir = f"{rootdir}",
+        filename = f"cum_hospitalizations",
+        color_map = "YlGnBu",
+        xlabel="Death probability", 
+        ylabel="Hospitalization probability", 
         title="Cummulative hospitalizations",
-        vmin=0.0,
-        vmax=0.8,
-    )
+        vmin= 0.,
+        vmax= 0.8,
+        show_plot = args.show_plot,
+        )
+    
+    logger.info(f"*** Done.")
 
-    logger.info("*** Done.")
 
-
-def plot_heatmaps_omega_rho(args: argparse.Namespace) -> None:
+def plot_heatmaps_omega_rho(args: Args) -> None:
     filepath = f"{args.cfg_file}"
     rootdir = f"{args.output_dir}/heatmaps"
-    with open(filepath) as fp:
+    with open(filepath, 'r') as fp:
         config = json.load(fp)
     """
     Deaths, hospitalizations, infections, vaccinations, cummulative 
@@ -382,36 +412,13 @@ def plot_heatmaps_omega_rho(args: argparse.Namespace) -> None:
     rate/inefficiency
     """
     logger.info(
-        "*** Deaths, hospitalizations, infections, vaccinations, cummulative \
+        f"*** Deaths, hospitalizations, infections, vaccinations, cummulative \
         hospitalizations and cummulative infections as functions of vaccination \
         rate/inefficiency."
-    )
+        )
     # OMEGA vs RHO rates
-    omegas = [
-        0.02,
-        0.018,
-        0.016,
-        0.014,
-        0.012,
-        0.01,
-        0.008,
-        0.005,
-        0.003,
-        0.001,
-    ]  # Vaccine rate
-    rhos = [
-        0.01,
-        0.05,
-        0.1,
-        0.15,
-        0.2,
-        0.25,
-        0.3,
-        0.35,
-        0.4,
-        0.45,
-        0.5,
-    ]  # Vaccine inefficiency
+    omegas = [0.02, 0.018, 0.016, 0.014, 0.012, 0.01, 0.008, 0.005, 0.003, 0.001] # Vaccine rate
+    rhos = [0.01, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5] # Vaccine inefficiency
 
     dth_data_vax_max = {}
     inf_data_vax_max = {}
@@ -425,7 +432,7 @@ def plot_heatmaps_omega_rho(args: argparse.Namespace) -> None:
         hsp_max = []
         inf_max = []
         vax_max = []
-
+        
         inf_cumul = []
         hsp_cumul = []
         for rho in rhos:
@@ -436,126 +443,135 @@ def plot_heatmaps_omega_rho(args: argparse.Namespace) -> None:
             env = CLS(args.cfg_file)
             env.reset(seed=args.seed)
             run_data = run_env_sim(
-                env=env,
-                t_max=config["env-params"]["max_steps"],
-                mode="Test",
-                selected_action=0,
-            )
+                env=env,  
+                t_max = config['env-params']['max_steps'], 
+                mode = "Test",
+                selected_action = 0
+                )
+            
+            #append max
+            N = config['env-params']['N']
+            inf_max.append(max(np.array(run_data['Infected']))/N)
+            hsp_max.append(max(np.array(run_data['Hospitalized']))/N)
+            dth_max.append(max(np.array(run_data['Deceased']))/N)
+            vax_max.append(run_data['Vaccinated'][-1]/N)
+            
+            #append cumul
+            inf_cumul.append(run_data['Infected_cumul'][-1]/N)
+            hsp_cumul.append(run_data['Hospitalized_cumul'][-1]/N)
+            
+        inf_data_vax_max[f'{omega}'] = inf_max
+        hsp_data_vax_max[f'{omega}'] = hsp_max
+        dth_data_vax_max[f'{omega}'] = dth_max
+        vax_data_vax_max[f'{omega}'] = vax_max
+        
+        inf_data_vax_cumul[f'{omega}'] = inf_cumul
+        hsp_data_vax_cumul[f'{omega}'] = hsp_cumul
 
-            # append max
-            N = config["env-params"]["N"]
-            inf_max.append(max(np.array(run_data["Infected"])) / N)
-            hsp_max.append(max(np.array(run_data["Hospitalized"])) / N)
-            dth_max.append(max(np.array(run_data["Deceased"])) / N)
-            vax_max.append(run_data["Vaccinated"][-1] / N)
-
-            # append cumul
-            inf_cumul.append(run_data["Infected_cumul"][-1] / N)
-            hsp_cumul.append(run_data["Hospitalized_cumul"][-1] / N)
-
-        inf_data_vax_max[f"{omega}"] = inf_max
-        hsp_data_vax_max[f"{omega}"] = hsp_max
-        dth_data_vax_max[f"{omega}"] = dth_max
-        vax_data_vax_max[f"{omega}"] = vax_max
-
-        inf_data_vax_cumul[f"{omega}"] = inf_cumul
-        hsp_data_vax_cumul[f"{omega}"] = hsp_cumul
 
     plot_heatmap(
-        data=pd.DataFrame(inf_data_vax_max, index=rhos).T,
-        rootdir=f"{rootdir}",
-        filename="peak_infections",
-        color_map="RdPu",
-        vmin=0.0,
-        vmax=0.4,
+        data = pd.DataFrame(inf_data_vax_max, index=rhos).T,
+        rootdir = f"{rootdir}",
+        filename = f"peak_infections",
+        color_map = 'RdPu',
+        vmin = .0,
+        vmax = .4,
         xlabel="Vaccine inefficacy rate",
         ylabel="Vaccination rate",
         title="Infections peak",
-    )
+        show_plot = args.show_plot,
+        )
+
 
     plot_heatmap(
-        data=pd.DataFrame(hsp_data_vax_max, index=rhos).T,
-        rootdir=f"{rootdir}",
-        filename="peak_hospitalizations",
-        color_map="viridis_r",
-        vmin=0.03,
-        vmax=0.3,
+        data = pd.DataFrame(hsp_data_vax_max, index=rhos).T,
+        rootdir = f"{rootdir}",
+        filename = f"peak_hospitalizations",
+        color_map = 'viridis_r',
+        vmin = .03,
+        vmax = .3,
         xlabel="Vaccine inefficacy rate",
         ylabel="Vaccination rate",
         title="Hospitalizations peak",
-    )
+        show_plot = args.show_plot,
+        )
 
     plot_heatmap(
-        data=pd.DataFrame(vax_data_vax_max, index=rhos).T,
-        rootdir=f"{rootdir}",
-        filename="peak_vaccinations",
-        color_map="RdPu",
-        vmin=0.0,
-        vmax=1.0,
+        data = pd.DataFrame(vax_data_vax_max, index=rhos).T,
+        rootdir = f"{rootdir}",
+        filename = f"peak_vaccinations",
+        color_map = 'RdPu',
+        vmin = 0.,
+        vmax = 1.,
         xlabel="Vaccine inefficacy rate",
         ylabel="Vaccination rate",
         title="Vaccination peak",
-    )
+        show_plot = args.show_plot,
+        )
 
     plot_heatmap(
-        data=pd.DataFrame(dth_data_vax_max, index=rhos).T,
-        rootdir=f"{rootdir}",
-        filename="peak_deaths",
-        color_map="magma_r",
-        vmin=0.0,
-        vmax=0.115,
+        data = pd.DataFrame(dth_data_vax_max, index=rhos).T,
+        rootdir = f"{rootdir}",
+        filename = f"peak_deaths",
+        color_map = 'magma_r',
+        vmin = .0,
+        vmax = .115,
         xlabel="Vaccine inefficacy rate",
         ylabel="Vaccination rate",
         title="Death rate",
-    )
+        show_plot = args.show_plot,
+        )
 
     plot_heatmap(
-        data=pd.DataFrame(inf_data_vax_cumul, index=rhos).T,
-        rootdir=f"{rootdir}",
-        filename="cum_vaccinations",
-        color_map="YlOrBr",
-        vmin=0.5,
-        vmax=2.0,
+        data = pd.DataFrame(inf_data_vax_cumul, index=rhos).T,
+        rootdir = f"{rootdir}",
+        filename = f"cum_vaccinations",
+        color_map = 'YlOrBr',
+        vmin = .5,
+        vmax = 2.,
         xlabel="Vaccine inefficacy rate",
         ylabel="Vaccination rate",
         title="Cummulative infections",
-    )
+        show_plot = args.show_plot,
+        )
+
 
     plot_heatmap(
-        data=pd.DataFrame(hsp_data_vax_cumul, index=rhos).T,
-        rootdir=f"{rootdir}",
-        filename="cum_hospitalizations",
-        color_map="viridis_r",
-        vmin=0.0,
-        vmax=0.7,
+        data = pd.DataFrame(hsp_data_vax_cumul, index=rhos).T,
+        rootdir = f"{rootdir}",
+        filename = f"cum_hospitalizations",
+        color_map = 'viridis_r',
+        vmin = .0,
+        vmax = .7,
         xlabel="Vaccine inefficacy rate",
         ylabel="Vaccination rate",
         title="Cummulative hospitalizations",
-    )
+        show_plot = args.show_plot,
+        )
+    
+    logger.info(f"*** Done.")
+    
 
-    logger.info("*** Done.")
-
-
-def run_plot_heatmaps(args: argparse.Namespace) -> None:
-    # filepath = "D:\\Projects\\pandemic_control\\configs\\envs_tests\\default-seiradhv.json"
+def run_plot_heatmaps(args: Args) -> None:
+    #filepath = "D:\\Projects\\pandemic_control\\configs\\envs_tests\\default-seiradhv.json"
     logger.info(f"*** Plotting heatmaps using environment '{args.env_type}'.")
     plot_heatmaps_pop_size(args)
     plot_heatmaps_ph_pd(args)
     plot_heatmaps_omega_rho(args)
-    logger.info("*** Heatmaps plotting completed.")
+    logger.info(f"*** Heatmaps plotting completed.")
+    
+    
 
 
-def plot_learning_curves(args: argparse.Namespace) -> None:
+
+def plot_learning_curves(args: Args) -> None:
     pass
 
-
-def run_preprocess_data(args: argparse.Namespace) -> None:
+def run_preprocess_data(args: Args) -> None:
     pass
 
-
-def run_train(args: argparse.Namespace) -> None:
+def run_train(args: Args) -> None:
     pass
 
-
-def run_predict(args: argparse.Namespace) -> None:
+def run_predict(args: Args) -> None:
     pass

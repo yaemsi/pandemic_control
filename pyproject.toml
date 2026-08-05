@@ -1,105 +1,46 @@
 [project]
 name = "pandemic-control"
-version = "0.1.0"
+version = "0.2.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = "==3.12.12"
+requires-python = ">=3.13, <=3.14"
 dependencies = [
+    "audioop-lts",
+    "gymnasium",
+    "ipykernel",
+    "jupyter",
+    "lab",
+    "loguru",
+    "matplotlib",
     "numpy",
     "pandas",
+    "rich",
+    "sb3-contrib",
     "scipy",
-    "requests>=2.32.2",
-    "ipykernel>=7.1.0",
-    "jupyterlab>=4.5.3",
-    "loguru>=0.7.3",
-    "torch==2.9.0+cu130",
-    "torchvision==0.24.0+cu130",
-    "torchaudio==2.9.0+cu130",
-    "ipywidgets>=8.1.8",
-    "flash-attn",
-    "lighteval>=0.13.0",
-    "fsspec>=2025.9.0",
-    "matplotlib>=3.10.8",
-    "wandb>=0.25.1",
-    "pre-commit>=4.5.1",
+    "seaborn",
+    "stable-baselines3",
+    "tbparse",
+    "tensorboard",
+    "torch==2.12.1",
+    "torchvision==0.27.1",
+    "tqdm",
+    "wandb",
 ]
 
 [tool.uv.sources]
-torch = {index = "pytorch-cu130", marker = "sys_platform == 'linux'"}
-torchvision = {index = "pytorch-cu130", marker = "sys_platform == 'linux'"}
-torchaudio = {index = "pytorch-cu130", marker = "sys_platform == 'linux'"}
-flash-attn = { url = "https://github.com/Dao-AILab/flash-attention/releases/download/v2.8.1/flash_attn-2.8.1+cu13torch2.9cxx11abiTRUE-cp312-cp312-linux_x86_64.whl" }
+torch = {index = "pytorch-cu132", marker = "sys_platform == 'linux'"}
+torchvision = {index = "pytorch-cu132", marker = "sys_platform == 'linux'"}
+torchaudio = {index = "pytorch-cu132", marker = "sys_platform == 'linux'"}
 
 
 [[tool.uv.index]]
-name = "pytorch-cu130"
-url = "https://download.pytorch.org/whl/cu130"
-
-
-[tool.setuptools.packages.find]
-    where = ["."] # Search in the current directory
-    include = ["pandemic_control"] # Include packages starting with these names
+name = "pytorch-cu132"
+url = "https://download.pytorch.org/whl/cu132"
 
 # Configuration for uv
 [tool.uv]
 index-strategy = "unsafe-best-match" # Crucial for resolving complex dependency conflicts
-no-build-isolation-package = ["flash-attn"]
 
-[tool.black]
-line-length = 88
-target-version = ["py312"]
-
-[tool.ruff]
-line-length = 88
-target-version = "py312"
-
-[tool.ruff.lint]
-select = [
-  "E",       # pycodestyle (error)
-  "F",       # pyflakes
-  "W",       # pycodestyle (warning)
-  "B",       # flake8-bugbear
-  "I",       # isort
-  "N",       # pep8-naming
-  "PIE",     # flake8-pie
-  "PLE",     # pylint error
-  "RUF100",  # Unused noqa comments
-  "PGH004",  # blanket noqa comments
-  "UP",      # pyupgrade
-  "C4",      # flake8-comprehensions
-  "SIM101",  # merge duplicate isinstance calls
-  "SIM201", "SIM202", "SIM222", "SIM223",  # flake8-simplify
-  "FURB168", # Prefer is operator over isinstance for None checks
-  "FURB169", # Do not use is comparison with type(None). Use None
-  "FURB187", # avoid list reverse copy
-  "FURB188", # use str.remove(pre|suf)fix
-  "ISC001",  # implicitly concatenated string
-  "RET501", "RET502",  # better return None handling
-]
-
-ignore = [
-  "B007",  # Loop control variable not used within the loop body.
-  "B011",  # Don't use assert False
-  "B023",  # Function definition does not bind loop variable
-  "B905",  # zip-without-explicit-strict
-  "E2",    # conflicts with black
-  "E402",  # module level import not at top of file
-  "E501",  # conflicts with black
-  "E721",  # Use `is` and `is not` for type comparisons, or `isinstance()` for isinstance checks
-  "E731",  # Do not assign a `lambda` expression, use a `def`
-  "E741",  # Ambiguous variable name
-  "N818",  # Exception should be named with an Error suffix
-  "N806",  # UPPER_CASE used for constant local variables
-  "UP031", # Use format specifiers instead of percent format
-  "UP032", # 'f-string always preferable to format' is controversial
-  "C409",  # https://github.com/astral-sh/ruff/issues/12912
-  "C420",  # reads a little worse. fromkeys predates dict comprehensions
-  "C416",  # There are a few cases where it's nice to have names for the dict items
-  "PIE790", # there's nothing wrong with pass
-  "W291",  # Trailing whitespace
-  "F841",  # Local variable is assigned to but never used
-  "B006",  # Do not use mutable data structures for argument defaults
-  "N803",  # Argument name should be lowercase
-  "N801",  # Class name should use CapWords convention
-]
-
+[tool.setuptools.packages.find]
+    where = ["."] # Search in the current directory
+    include = ["pandemic_control"] # Include packages starting with these names

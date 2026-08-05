@@ -1,17 +1,17 @@
 {
     "env-params": {
-        "N" : 338289856,
-        "health_weights" : [0.75, 1.5 , 7.0], 
-        "hosp_cap" : 937062,
-        "trade_off_weights" : [1.0, 1.0],
+        "N" : 67813000, 
+        "health_weights" : [17.0, 17.0 , 66.0], 
+        "hosp_cap" : 169532,
+        "trade_off_weights" : [100.0, 0.0],
         "days_per_restrict" : 7,
-        "max_steps" : 365
+        "max_steps" : 366
     },
     "spec-params": {
         "gamma" : [7, 
                 10, 
                 16],   
-        "omega" :  0.0017, 
+        "omega" :  0.0021, 
         "rho"   :  0.08,
         "delta" :  5.1, 
         "theta" :  5.9,
