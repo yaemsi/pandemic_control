@@ -92,10 +92,10 @@ def run_model_policy_simulations(
     )
     logger.info(f"*** Training done. Plotting rewards curves.")
     plot_rewards(
-        plot_data=pd.DataFrame(callback.episode_rewards, columns=['PPO']),
+        plot_data=pd.DataFrame(callback.episode_rewards, columns=[f'{args.model_type}']),
         rootdir=f"{args.output_dir}/figures",
         filename='reward_per_episode',
-        labels=['PPO'],
+        labels=[f'{args.model_type}'],
         figsize = (10, 8),
         facecolor= "#ffffff",
         xlabel = 'Episodes',
@@ -108,10 +108,10 @@ def run_model_policy_simulations(
         )
 
     plot_rewards(
-        plot_data=pd.DataFrame(callback.step_rewards, columns=['PPO']),
+        plot_data=pd.DataFrame(callback.step_rewards, columns=[f'{args.model_type}']),
         rootdir=f"{args.output_dir}/figures",
         filename='reward_per_step',
-        labels=['PPO'],
+        labels=[f'{args.model_type}'],
         figsize = (10, 8),
         facecolor= "#ffffff",
         xlabel = 'Steps',
@@ -563,15 +563,59 @@ def run_plot_heatmaps(args: Args) -> None:
     
 
 
+def run_train(args: Args, callback: BaseCallback | None = None) -> None:
+    logger.info(f"*** Training '{args.model_type}' agent on '{args.env_type}' environment.")
 
-def plot_learning_curves(args: Args) -> None:
-    pass
+    CLS = getattr(sys.modules[__name__], f"{args.env_type}_Env")
+    env = CLS(args.cfg_file)
+    env.reset(seed=args.seed)
 
-def run_preprocess_data(args: Args) -> None:
-    pass
+    #rootdir=f"./outputs/basic_tests/rl_model"
+    logger.info(f"*** Loading '{args.model_type}' agent.")
+    #output_dir = f"./outputs/basic_tests/rl_model/saved_weights/{args.env_type.lower()}_{args.model_type.lower()}"
+    output_dir = f"{args.output_dir}/learning_curves/{args.env_type.lower()}_{args.model_type.lower()}"
 
-def run_train(args: Args) -> None:
-    pass
+    model = RLModel.from_metadata (
+        env = env,
+        model_type = f"{args.model_type}",
+        device = f"cpu",
+        seed = args.seed,
+        verbose = 1,
+        #tensorboard_log = os.path.join(f"{output_dir}", "logs"),
+        n_steps = args.t_max//env.days,
+        batch_size = args.t_max//env.days,
+    )
+    
+    logger.info(f"*** Starting training.")
+    model.train(
+        timesteps = args.timesteps,
+        output_dir = os.path.join(f"{output_dir}", "saved_weights"),
+        #tb_log_name = f"{args.env_type.lower()}_history",
+        epochs = args.epochs,
+        save_interval = args.save_interval,
+        callback = callback,
+    )
+    logger.info(f"*** Training done. Saving rewards curves.")
+    history_dir = os.path.join(
+        f"{output_dir}", 
+        "history"
+        )
+    os.makedirs(history_dir, exist_ok=True)
+
+    df = pd.DataFrame(
+        {
+            'Steps': np.arange(1, len(callback.step_rewards)+1), 
+            f'{args.model_type}': callback.step_rewards
+        }).set_index('Steps')
+    df.to_csv(os.path.join(f"{history_dir}", f"reward_per_step.csv"))
+
+    df = pd.DataFrame(
+        {
+            'Episodes': np.arange(1, len(callback.episode_rewards)+1),
+            f'{args.model_type}': callback.episode_rewards
+        }).set_index('Episodes')
+    df.to_csv(os.path.join(f"{history_dir}", f"reward_per_episode.csv"),)
+    logger.info(f"*** Done.") 
 
 def run_predict(args: Args) -> None:
     pass

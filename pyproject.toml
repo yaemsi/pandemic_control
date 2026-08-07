@@ -16,6 +16,7 @@ dependencies = [
     "pandas",
     "rich",
     "sb3-contrib",
+    "sbx-rl>=0.28.0",
     "scipy",
     "seaborn",
     "stable-baselines3",

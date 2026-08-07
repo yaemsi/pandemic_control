@@ -11,6 +11,7 @@ from abc import (
 )
 from loguru import logger
 from sb3_contrib import QRDQN
+from sbx import DQN as DDQN
 from stable_baselines3 import (
     PPO,
     DQN,
@@ -26,7 +27,7 @@ BASE_MODELS = {
     'A2C': A2C,
     'QRDQN': QRDQN,
     'DQN': DQN,
-    'DDQN': DQN,
+    'DDQN': DDQN,
 }
 
 
@@ -75,10 +76,13 @@ class RLModel(BaseModel):
         if not model_type in BASE_MODELS.keys():
             raise ValueError(f"Unknown model type ('{model_type}'). \
                 Please slect one of the following: {BASE_MODELS.keys()}")
-        if model_type == 'DQN':
-            kwargs['double_q'] = False
-        elif model_type == 'DDQN':
-            kwargs['double_q'] = True
+
+        if model_type not in ('PPO', 'A2C'):
+            kwargs.pop('n_steps', None)
+        elif model_type == 'A2C':
+            kwargs.pop('batch_size', None)
+        
+        
         model = BASE_MODELS[model_type](
             policy = "MlpPolicy",
             env = Monitor(env), 

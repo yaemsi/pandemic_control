@@ -57,8 +57,6 @@ from .runners import (
     plot_heatmaps_ph_pd,
     plot_heatmaps_omega_rho,
     run_plot_heatmaps,
-    plot_learning_curves,
-    run_preprocess_data,
     run_train,
     run_predict,
 )
@@ -117,6 +115,4 @@ __all__ = [
     'plot_heatmaps_omega_rho',
     'run_train',
     'run_predict',
-    'plot_learning_curves',
-    'run_preprocess_data',
     ]

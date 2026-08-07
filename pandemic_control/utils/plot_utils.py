@@ -815,6 +815,9 @@ def plot_rewards(
     legend_title: str | None = 'Models',
     legend_loc: str = "best",
     smooth_window: int | None = None,
+    stride: int | None = None,
+    ylim: Tuple[float, float] | None = None,
+    show_variance: bool = True,
     show_plot: bool = True,
     ) -> None:
 
@@ -833,6 +836,7 @@ def plot_rewards(
 
     _, axis = plt.subplots(1, 1, figsize=figsize, facecolor=f"{facecolor}")
 
+    y_min, y_max = np.inf, -np.inf
     for i, lbl in enumerate(labels):
         # Columns that are not named after an algorithm fall back on the
         # default matplotlib cycle
@@ -840,9 +844,18 @@ def plot_rewards(
         data = plot_data[f"{lbl}"].dropna()
 
         if smooth_window and (smooth_window > 1):
-            # Raw signal kept in the background, rolling mean on top
-            axis.plot(data.index, data.values, color=f"{color}", alpha=.25, linewidth=1.)
+            if show_variance:
+                # Raw signal kept in the background, rolling mean on top
+                axis.plot(data.index, data.values, color=f"{color}", alpha=.25, linewidth=1.)
             data = data.rolling(smooth_window, min_periods=1).mean()
+
+        # Only decimate once the signal has been smoothed, otherwise dropping
+        # points aliases the episode cycle back into the curve
+        if stride and (stride > 1):
+            data = data.iloc[::stride]
+
+        y_min = min(y_min, data.min())
+        y_max = max(y_max, data.max())
 
         sns.lineplot(
             x=data.index,
@@ -852,6 +865,14 @@ def plot_rewards(
             label=f"{lbl}",
             linewidth=2.5,
             )
+
+    # The faint raw trace spans a much wider range than the curves drawn on top
+    # of it, so the view is framed on the latter and the former simply clipped
+    if ylim:
+        axis.set_ylim(*ylim)
+    elif np.isfinite([y_min, y_max]).all() and (y_max > y_min):
+        margin = .05 * (y_max - y_min)
+        axis.set_ylim(y_min - margin, y_max + margin)
 
     axis.set(xlabel=f"{xlabel}", ylabel=f"{ylabel}")
     if title:
